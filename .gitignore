@@ -1,0 +1,23 @@
+# See https://github.com/github/gitignore/blob/main/Node.gitignore
+node_modules/
+/dist/
+/.vite/
+
+# Dependencies
+*.pem
+
+# Optional npm/yarn/pnpm cache directory
+# uncomment next line to use
+# pnpm-strict-peer-deps/
+
+# next generation plugin system
+.npmrc
+
+# Optional
+# debug.log
+
+# Vercel
+*.vercel
+
+# Environment variables
+.env*

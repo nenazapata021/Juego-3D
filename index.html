@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recolecta y Esquiva 3D</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #hud { position: fixed; top: 12px; left: 16px; color: #fff; white-space: pre-line;
+           font: 600 18px/1.5 system-ui; text-shadow: 0 2px 4px #000; }
+    #msg { position: fixed; top: 38%; left: 0; right: 0; text-align: center; color: #ffd34d;
+           font: 800 52px/1.2 system-ui; white-space: pre-line; opacity: 0;
+           transition: opacity 0.3s; pointer-events: none; text-shadow: 0 4px 12px #000; }
+    #help { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; color: #9fb0d9;
+            font: 14px system-ui; }
+  </style>
+</head>
+<body>
+  <div id="hud"></div>
+  <div id="msg"></div>
+  <div id="help">Mover: flechas / WASD · Dash: Espacio · Pausa: P · Sonido: M · Reiniciar: R</div>
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
