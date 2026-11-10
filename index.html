@@ -3,22 +3,362 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Recolecta y Esquiva 3D</title>
+  <title>Neon Rush — Runner de combate 3D</title>
   <style>
-    body { margin: 0; overflow: hidden; }
-    #hud { position: fixed; top: 12px; left: 16px; color: #fff; white-space: pre-line;
-           font: 600 18px/1.5 system-ui; text-shadow: 0 2px 4px #000; }
-    #msg { position: fixed; top: 38%; left: 0; right: 0; text-align: center; color: #ffd34d;
-           font: 800 52px/1.2 system-ui; white-space: pre-line; opacity: 0;
-           transition: opacity 0.3s; pointer-events: none; text-shadow: 0 4px 12px #000; }
-    #help { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; color: #9fb0d9;
-            font: 14px system-ui; }
+    :root {
+      --bg: #0a0e1a;
+      --panel: rgba(10, 16, 32, 0.88);
+      --cyan: #2ee6ff;
+      --mint: #2ee6a6;
+      --amber: #ffd34d;
+      --red: #ff4d6d;
+      --violet: #8a5cff;
+      --text: #e8f1ff;
+      --dim: #8aa0c7;
+      --line: rgba(46, 230, 255, 0.25);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: var(--bg); }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    canvas { display: block; }
+
+    /* ---------- HUD ---------- */
+    #hud {
+      position: fixed; inset: 0; pointer-events: none; z-index: 5;
+      display: none;
+    }
+    #hud.on { display: block; }
+
+    .hud-top {
+      position: absolute; top: 18px; left: 20px; right: 20px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px;
+    }
+    .hud-block { display: flex; flex-direction: column; gap: 6px; }
+    .hud-block.right { align-items: flex-end; text-align: right; }
+
+    .label {
+      font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--dim);
+    }
+    .score {
+      font-size: 42px; font-weight: 800; line-height: 1;
+      color: var(--text);
+      text-shadow: 0 0 18px rgba(46, 230, 255, 0.45);
+      font-variant-numeric: tabular-nums;
+    }
+    .score .best { font-size: 14px; font-weight: 600; color: var(--dim); margin-left: 10px; letter-spacing: 0.08em; }
+
+    .stat-row { display: flex; gap: 14px; align-items: center; }
+    .stat {
+      font-size: 13px; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--cyan); background: rgba(46, 230, 255, 0.08);
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 4px 12px; font-variant-numeric: tabular-nums;
+    }
+    .stat.amber { color: var(--amber); border-color: rgba(255, 211, 77, 0.35); background: rgba(255, 211, 77, 0.08); }
+
+    .lives { display: flex; gap: 6px; margin-top: 4px; }
+    .life {
+      width: 26px; height: 10px; border-radius: 3px;
+      background: var(--mint); box-shadow: 0 0 10px rgba(46, 230, 166, 0.7);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .life.off { opacity: 0.18; transform: scaleY(0.6); box-shadow: none; background: var(--dim); }
+
+    .bars { display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+    .bar-wrap { display: flex; flex-direction: column; gap: 4px; }
+    .bar {
+      height: 8px; border-radius: 4px; overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .bar > i {
+      display: block; height: 100%; border-radius: 4px;
+      transition: width 0.25s ease;
+    }
+    #dashFill { background: linear-gradient(90deg, var(--violet), var(--cyan)); box-shadow: 0 0 8px rgba(46,230,255,.6); width: 100%; }
+    #distFill { background: linear-gradient(90deg, var(--amber), #ff9f43); box-shadow: 0 0 8px rgba(255,211,77,.5); width: 0%; }
+
+    .powerups { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .pu {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      padding: 5px 10px; border-radius: 6px; text-transform: uppercase;
+      border: 1px solid; opacity: 0; transform: translateY(-6px);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .pu.on { opacity: 1; transform: translateY(0); }
+    .pu.shield { color: #4dd2ff; border-color: rgba(77, 210, 255, 0.5); background: rgba(77, 210, 255, 0.12); }
+    .pu.boost { color: #ff9f43; border-color: rgba(255, 159, 67, 0.5); background: rgba(255, 159, 67, 0.12); }
+
+    /* combo flotante */
+    #combo {
+      position: absolute; top: 110px; right: 24px; text-align: right;
+      font-weight: 800; font-size: 34px; color: var(--amber);
+      text-shadow: 0 0 20px rgba(255, 211, 77, 0.6);
+      opacity: 0; transform: scale(0.7); transition: opacity 0.15s, transform 0.15s;
+    }
+    #combo.on { opacity: 1; transform: scale(1); }
+    #combo small { display: block; font-size: 12px; letter-spacing: 0.2em; color: var(--dim); font-weight: 600; }
+
+    /* centro: mensajes y feedback */
+    #centerMsg {
+      position: absolute; top: 34%; left: 0; right: 0; text-align: center;
+      font-size: clamp(28px, 5vw, 56px); font-weight: 800; letter-spacing: 0.06em;
+      color: var(--amber); text-shadow: 0 0 30px rgba(255, 211, 77, 0.5), 0 4px 12px rgba(0,0,0,0.6);
+      white-space: pre-line; opacity: 0; transition: opacity 0.25s, transform 0.25s;
+      transform: translateY(10px) scale(0.96); pointer-events: none;
+    }
+    #centerMsg.on { opacity: 1; transform: translateY(0) scale(1); }
+
+    /* números de puntuación flotantes */
+    .float-score {
+      position: absolute; font-weight: 800; font-size: 18px; pointer-events: none;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.8); transform: translate(-50%, -50%);
+      animation: floatUp 0.8s ease-out forwards; white-space: nowrap;
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+      100% { opacity: 0; transform: translate(-50%, -140%) scale(1.15); }
+    }
+
+    #crosshair {
+      position: absolute; left: 50%; top: 50%; width: 26px; height: 26px;
+      margin: -13px 0 0 -13px; opacity: 0.55;
+    }
+    #crosshair::before, #crosshair::after {
+      content: ""; position: absolute; background: var(--cyan);
+      box-shadow: 0 0 6px var(--cyan);
+    }
+    #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+    #crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+
+    /* feedback de daño */
+    #damageFlash {
+      position: absolute; inset: 0; opacity: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 45%, rgba(255, 77, 109, 0.55) 100%);
+      transition: opacity 0.35s ease-out;
+    }
+    #damageFlash.on { opacity: 1; transition: opacity 0.05s; }
+    #pickupFlash {
+      position: absolute; inset: 0; opacity: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 211, 77, 0.35) 100%);
+      transition: opacity 0.4s ease-out;
+    }
+    #pickupFlash.on { opacity: 1; transition: opacity 0.05s; }
+
+    /* velocidad: viñeta dinámica */
+    #speedVignette {
+      position: absolute; inset: 0; opacity: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(10, 14, 26, 0.75) 100%);
+      transition: opacity 0.4s;
+    }
+
+    #help {
+      position: absolute; bottom: 14px; left: 0; right: 0; text-align: center;
+      font-size: 12px; letter-spacing: 0.14em; color: rgba(138, 160, 199, 0.75);
+      text-transform: uppercase;
+    }
+    #help b { color: var(--cyan); font-weight: 700; }
+
+    /* ---------- Pantallas ---------- */
+    .screen {
+      position: fixed; inset: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 50% 30%, rgba(20, 30, 60, 0.55), rgba(6, 8, 16, 0.92));
+      opacity: 1; transition: opacity 0.4s ease;
+      padding: 24px;
+    }
+    .screen.hidden { opacity: 0; pointer-events: none; }
+
+    .panel {
+      width: min(560px, 100%); text-align: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 44px 40px 36px;
+      box-shadow: 0 0 60px rgba(46, 230, 255, 0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+      backdrop-filter: blur(12px);
+    }
+    .eyebrow {
+      font-size: 12px; letter-spacing: 0.35em; text-transform: uppercase;
+      color: var(--cyan); margin-bottom: 14px;
+    }
+    h1 {
+      font-size: clamp(42px, 8vw, 72px); font-weight: 900; line-height: 0.95;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+      background: linear-gradient(120deg, #fff 10%, var(--cyan) 55%, var(--mint) 95%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 0 24px rgba(46, 230, 255, 0.35));
+    }
+    h2 {
+      font-size: clamp(30px, 6vw, 44px); font-weight: 900; letter-spacing: -0.01em;
+      color: var(--text); margin-bottom: 6px;
+    }
+    .sub { color: var(--dim); font-size: 15px; line-height: 1.55; margin-bottom: 28px; }
+
+    .controls {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+      margin-bottom: 30px; text-align: left;
+    }
+    .ctrl {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 12px; padding: 10px 14px;
+      font-size: 13px; color: var(--dim);
+    }
+    .ctrl kbd {
+      font-family: inherit; font-size: 12px; font-weight: 700; color: var(--text);
+      background: rgba(46, 230, 255, 0.12); border: 1px solid var(--line);
+      border-radius: 6px; padding: 4px 9px; min-width: 34px; text-align: center;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.4);
+    }
+
+    .btn {
+      pointer-events: auto; cursor: pointer; border: none; border-radius: 14px;
+      font-family: inherit; font-weight: 800; letter-spacing: 0.16em;
+      text-transform: uppercase; transition: transform 0.12s, box-shadow 0.2s, background 0.2s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan), var(--mint));
+      color: #062033; font-size: 17px; padding: 16px 44px;
+      box-shadow: 0 0 30px rgba(46, 230, 255, 0.35);
+    }
+    .btn-primary:hover { box-shadow: 0 0 44px rgba(46, 230, 255, 0.55); }
+    .btn-ghost {
+      background: transparent; color: var(--dim); border: 1px solid rgba(255,255,255,0.15);
+      font-size: 13px; padding: 12px 28px; margin-top: 14px;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--line); }
+
+    .final-score {
+      font-size: clamp(56px, 12vw, 88px); font-weight: 900; line-height: 1;
+      color: var(--amber); text-shadow: 0 0 40px rgba(255, 211, 77, 0.45);
+      font-variant-numeric: tabular-nums; margin: 6px 0 4px;
+    }
+    .final-label { font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin: 24px 0 28px;
+    }
+    .stat-cell {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px; padding: 14px 8px;
+    }
+    .stat-cell b { display: block; font-size: 22px; color: var(--text); font-variant-numeric: tabular-nums; }
+    .stat-cell span { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+    .new-record {
+      display: none; margin-bottom: 10px; font-size: 13px; font-weight: 800;
+      letter-spacing: 0.25em; text-transform: uppercase; color: var(--mint);
+      text-shadow: 0 0 16px rgba(46, 230, 166, 0.6);
+    }
+    .new-record.on { display: block; }
+
+    #pauseScreen .panel { padding: 36px; }
+
+    @media (max-width: 560px) {
+      .controls { grid-template-columns: 1fr; }
+      .score { font-size: 32px; }
+      .panel { padding: 32px 22px 28px; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    }
   </style>
 </head>
 <body>
-  <div id="hud"></div>
-  <div id="msg"></div>
-  <div id="help">Mover: flechas / WASD · Dash: Espacio · Pausa: P · Sonido: M · Reiniciar: R</div>
+  <!-- Pantalla de inicio -->
+  <div id="menuScreen" class="screen">
+    <div class="panel">
+      <div class="eyebrow">Arcade runner 3D</div>
+      <h1>NEON RUSH</h1>
+      <p class="sub">Pilota un dron de combate por una autopista infinita.<br>
+        Esquiva barreras, derriba enemigos y encadena monedas para multiplicar tu puntuación.</p>
+      <div class="controls">
+        <div class="ctrl"><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> Desplazar dron</div>
+        <div class="ctrl"><kbd>W</kbd> / <kbd>↑</kbd> Disparar al frente</div>
+        <div class="ctrl"><kbd>ESPACIO</kbd> Dash (invulnerable)</div>
+        <div class="ctrl"><kbd>P</kbd> Pausa · <kbd>M</kbd> Sonido</div>
+      </div>
+      <button id="playBtn" class="btn btn-primary">Iniciar misión</button>
+    </div>
+  </div>
+
+  <!-- Pantalla de pausa -->
+  <div id="pauseScreen" class="screen hidden">
+    <div class="panel">
+      <div class="eyebrow">Sistema en espera</div>
+      <h2>PAUSA</h2>
+      <p class="sub">Pulsa <b>P</b> para continuar la misión.</p>
+      <button id="resumeBtn" class="btn btn-primary">Continuar</button>
+      <br>
+      <button id="quitBtn" class="btn btn-ghost">Volver al menú</button>
+    </div>
+  </div>
+
+  <!-- Pantalla de fin de juego -->
+  <div id="overScreen" class="screen hidden">
+    <div class="panel">
+      <div class="eyebrow">Dron destruido</div>
+      <h2>FIN DE LA MISIÓN</h2>
+      <div id="newRecord" class="new-record">★ Nuevo récord ★</div>
+      <div class="final-label">Puntuación</div>
+      <div id="finalScore" class="final-score">0</div>
+      <div class="stats-grid">
+        <div class="stat-cell"><b id="finalDist">0 m</b><span>Distancia</span></div>
+        <div class="stat-cell"><b id="finalKills">0</b><span>Bajas</span></div>
+        <div class="stat-cell"><b id="finalLevel">1</b><span>Nivel</span></div>
+      </div>
+      <button id="retryBtn" class="btn btn-primary">Reintentar</button>
+      <br>
+      <button id="menuBtn" class="btn btn-ghost">Menú principal</button>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hud-block">
+        <div class="label">Puntuación</div>
+        <div class="score"><span id="scoreVal">0</span><span class="best">Récord <b id="bestVal">0</b></span></div>
+        <div class="lives" id="lives"></div>
+      </div>
+      <div class="hud-block right">
+        <div class="stat-row">
+          <div class="stat amber" id="levelVal">NIVEL 1</div>
+          <div class="stat" id="distVal">0 M</div>
+        </div>
+        <div class="bars" style="margin-top:8px">
+          <div class="bar-wrap">
+            <div class="label">Dash</div>
+            <div class="bar"><i id="dashFill"></i></div>
+          </div>
+          <div class="bar-wrap">
+            <div class="label">Velocidad</div>
+            <div class="bar"><i id="distFill"></i></div>
+          </div>
+        </div>
+        <div class="powerups">
+          <div id="puShield" class="pu shield">Escudo</div>
+          <div id="puBoost" class="pu boost">Turbo</div>
+        </div>
+      </div>
+    </div>
+    <div id="combo"></div>
+    <div id="centerMsg"></div>
+    <div id="crosshair"></div>
+    <div id="speedVignette"></div>
+    <div id="pickupFlash"></div>
+    <div id="damageFlash"></div>
+    <div id="help"><b>A/D</b> o <b>←/→</b> mover · <b>W/↑</b> disparar al frente · <b>Espacio</b> dash · <b>P</b> pausa</div>
+  </div>
+
   <script type="module" src="/main.js"></script>
 </body>
 </html>
